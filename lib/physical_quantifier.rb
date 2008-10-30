@@ -38,7 +38,7 @@ module PhysicalQuantifier
       end
 
       # 2. Ensure a raw getter exists.
-      ensure_getter_exists(attr)
+      ensure_getter_exists attr
       
       # 3. If required, create an alias to the raw getter.
       alias_method(raw_getter_name, attr) if create_alias
@@ -317,18 +317,19 @@ module PhysicalQuantifier
 
   ##
   # A transformation that acts on a PhysicalQuantity object. Transformations
-  # handle conversion from one Unit to another. They do NOT handle operations
-  # (e.g., +, *) between PhysicalQuantities. Transformations may be added
-  # to each other and their order is preserved.
+  # handle conversion of a +single+ PhysicalQuantity from one Unit to another.
+  # They do NOT handle operations (e.g., +, *) +between+ PhysicalQuantities.
+  # Transformations may be added to each other and their order is preserved.
   #
   class Transformation
     include Comparable
     
     ##
     # Define the equality operator for easy comparison of Transformations.
-    # Since the == operator won't do what we want for lambda objects, we
-    # define equality as mapping [-1, 0, 1, 2, 3.5] to the same values. This
-    # isn't perfect but it should work in most practical situations. 
+    # Since the == operator isn't usefully defined for lambda objects, we
+    # define two Transformations equal if they map -1, 0, 1, 2, and 3.5 to
+    # the same values. This clearly isn't ideal but it should work in most
+    # practical situations involving real-world physical quantities.
     #
     def ==(b)
       tests = [-1, 0, 1, 2, 3.5]
@@ -337,7 +338,7 @@ module PhysicalQuantifier
     end
     
     ##
-    # Get the null transformation.
+    # Get the null/identity Transformation.
     #
     def self.null
       self.new(nil, nil, lambda{ |x| x })
@@ -356,21 +357,6 @@ module PhysicalQuantifier
     
     attr_reader :from, :to, :ops
 
-#    ##
-#    # Apply to a PhysicalQuantity.
-#    #
-#    def apply_to(physical_quantity)
-#      
-#      # Transform unit.
-#      if physical_quantity.powers.has_key?(from)
-#        physical_quantity.powers[from] = to
-#      end 
-#      
-#      # Transform quantity.
-#      q = physical_quantity.quantity
-#      physical_quantity.quantity = self.apply_to_quantity(q)
-#    end
-    
     ##
     # Add two Transformations. This returns a single Transformation which is
     # equivalent to its two summands. In order for two Transformations to be
@@ -391,7 +377,7 @@ module PhysicalQuantifier
     
     ##
     # Transform a simple numeric quantity. This method is defined mainly so
-    # the comparison (==) operator works. It works but is not intended for
+    # the comparison (==) operator works. It works, but is not intended for
     # general use.
     #
     def apply_to_quantity(q)
@@ -409,10 +395,10 @@ module PhysicalQuantifier
     include Comparable
     
     ##
-    # Define the equality operator.
+    # Define the equality operator. Convert numbers to strings in order to
+    # avoid complications with Floats.
     #
     def ==(b)
-      # Convert quantities to strings to avoid weird problems with floats.
       [quantity.to_s, powers] == [b.quantity.to_s, b.powers]
     end
 
@@ -479,8 +465,8 @@ module PhysicalQuantifier
       q = @quantity # use the de-normalized quantity
 
       # Split powers into numerator and denominator.
-      num = powers.reject{ |u,p| p < 0 }.to_a
-      den = powers.reject{ |u,p| p > 0 }.to_a
+      num = powers.select{ |u,p| p > 0 }.to_a
+      den = powers.select{ |u,p| p < 0 }.to_a
       den.map!{ |i| [i[0], i[1].abs] } # make all denominator powers positive
 
       # Convert num and den into strings.
