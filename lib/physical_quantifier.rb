@@ -1,44 +1,84 @@
 module PhysicalQuantifier
 
   ##
-  # Easy access to numeric model attributes as PhysicalQuantities. Takes a
-  # unit string and a variable number of attribute names.
+  # By default, don't overwrite the default get methods.
+  #
+  @getters_return_physical_quantities = false
+  
+  ##
+  # Call this method from your model before <tt>physical_quantity</tt>
+  # to have the default "get" methods for each attribute return a
+  # PhysicalQuantity object rather than an number. The original get methods
+  # are prefixed with <tt>raw_</tt> so you can still call, for example,
+  # <tt>raw_length</tt> to get the number stored in the database.
+  #
+  def getters_return_physical_quantities
+    @getters_return_physical_quantities = true
+  end
+  
+  ##
+  # Automatically get numeric attributes as PhysicalQuantity objects. Takes a
+  # unit string and a variable number of model attribute names.
   #
   def physical_quantity(*attrs)
     unit = parse_units(attrs.shift)
-    overwrite = attrs.shift
-
+    
     attrs.each do |attr|
       attr = attr.to_s
 
-      # Define raw value getter.
-      raw_getter_name = "raw_" + attr
-
-      # If getter already defined, create an alias to it.
-      if method_defined? attr
-        alias_method raw_getter_name, attr
-
-      # If no getter defined, create one.
-      else 
-        define_method(raw_getter_name) do
-
-          # We might be inheriting from an ActiveRecord-like class in which
-          # +attributes+ is defined. If not, fall back to something reliable.
-          begin
-            attributes[attr]
-          rescue NoMethodError
-            instance_variable_get '@' + attr
-          end
-        end
+      # 1. Get method names and whether to alias.
+      if @getters_return_physical_quantities
+        raw_getter_name    = "raw_" + attr
+        fancy_getter_name  = attr
+        create_alias       = true
+      else
+        raw_getter_name    = attr
+        fancy_getter_name  = attr + "_qty"
+        create_alias       = false
       end
 
-      # Define fancy getter.
-      define_method(attr) do
-        PhysicalQuantity.new(eval(raw_getter_name), unit)
-      end
+      # 2. Ensure a raw getter exists.
+      ensure_getter_exists(attr)
+      
+      # 3. If required, create an alias to the raw getter.
+      alias_method(raw_getter_name, attr) if create_alias
+
+      # 4. Define fancy getter.
+      define_fancy_getter fancy_getter_name, raw_getter_name, unit
     end
   end
   
+  
+  private # -------------------------------------------------------------------
+  
+  ##
+  # Ensure a getter exists for a given attribute. Takes the attribute name.
+  # We might be inheriting from an ActiveRecord-like class which defines
+  # <tt>attributes</tt>. If not, fall back to <tt>instance_variable_get</tt>.
+  # This is not a thorough solution, and if it doesn't work for your data
+  # model, please let me know.
+  #
+  def ensure_getter_exists(attr)
+    unless method_defined? attr
+      define_method(attr) do
+        begin
+          attributes[attr]
+        rescue NoMethodError
+          instance_variable_get '@' + attr
+        end
+      end
+    end
+  end
+
+  ##
+  # Define fancy getter (returns PhysicalQuantity).
+  #
+  def define_fancy_getter(fancy_name, raw_name, unit)
+    define_method(fancy_name) do
+      PhysicalQuantity.new eval(raw_name), unit
+    end
+  end
+
   ##
   # Build a units hash (e.g., {:m => 1, :s => -2}) from a string (e.g., 'm/s^2').
   #
@@ -50,7 +90,7 @@ module PhysicalQuantifier
   ##
   # Parse a unit string without a '/' (numerator or denominator).
   #
-  private; def parse_unit_part(string, denominator = false)
+  def parse_unit_part(string, denominator = false)
     return {} if string.nil?
     units = {}
     matches = string.scan(/(\w+)(\^\d)?/)
@@ -59,7 +99,9 @@ module PhysicalQuantifier
       units[m[0].intern] = exp
     end
     units
-  end; public
+  end
+  
+  public # --------------------------------------------------------------------
   
   
   ##

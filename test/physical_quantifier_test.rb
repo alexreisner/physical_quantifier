@@ -196,22 +196,47 @@ class PhysicalQuantifierTest < Test::Unit::TestCase
   # Model integration tests
   #
   
-  # Class with existing getters.
+  # Class with existing basic getters overwritten by fancy ones.
   class SteelBeam
+    attr_accessor :depth, :weight
+    extend PhysicalQuantifier
+    getters_return_physical_quantities
+    physical_quantity 'mm', :depth
+    physical_quantity 'kg/m', :weight
+  end
+  
+  # Make sure fancy getter is "live" (responds to changes in raw attribute).
+  def test_getter_is_live
+    s = SteelBeam.new
+    s.depth = 814
+    assert_equal PhysicalQuantity.new(814,  :mm), s.depth
+    s.depth = 512
+    assert_equal PhysicalQuantity.new(512,  :mm), s.depth
+  end
+  
+  def test_fancy_getters_with_aliasing
+    s = SteelBeam.new
+    s.depth = 814
+    s.weight = 57.3
+    assert_equal PhysicalQuantity.new(814,  :mm), s.depth
+    assert_equal PhysicalQuantity.new(57.3, :kg => 1, :m => -1), s.weight 
+    assert_equal 814,  s.raw_depth
+    assert_equal 57.3, s.raw_weight
+  end
+
+  # Class with existing basic getters that should NOT be overwritten.
+  class SteelSheet
     attr_accessor :depth, :weight
     extend PhysicalQuantifier
     physical_quantity 'mm', :depth
     physical_quantity 'kg/m', :weight
   end
   
-  def test_getter_aliasing
-    s = SteelBeam.new
-    s.depth = 814
-    s.weight = 57.3
-    assert_equal PhysicalQuantity.new(814,  :mm), s.depth 
-    assert_equal PhysicalQuantity.new(57.3, :kg => 1, :m => -1), s.weight 
-    assert_equal 814,  s.raw_depth
-    assert_equal 57.3, s.raw_weight
+  def test_fancy_getters_without_aliasing
+    s = SteelSheet.new
+    s.depth = 769
+    assert_equal 769,  s.depth
+    assert_equal PhysicalQuantity.new(769,  :mm), s.depth_qty
   end
 
 
