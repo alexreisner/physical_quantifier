@@ -6,6 +6,7 @@ module PhysicalQuantifier
   #
   def physical_quantity(*attrs)
     unit = parse_units(attrs.shift)
+    overwrite = attrs.shift
 
     attrs.each do |attr|
       attr = attr.to_s
