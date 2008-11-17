@@ -112,7 +112,7 @@ module PhysicalQuantifier
   class Error::BaseUnit::Duplicate    < Error::BaseUnit; end
   class Error::BaseUnit::NotDefined   < Error::BaseUnit; end
   class Error::Unit                   < Error; end
-  class Error::Unit::Duplicate         < Error::Unit; end
+  class Error::Unit::Duplicate        < Error::Unit; end
   class Error::Unit::NotDefined       < Error::Unit; end
   class Error::Transformation         < Error; end
   class Error::Transformation::Sum    < Error::Transformation; end
@@ -435,7 +435,7 @@ module PhysicalQuantifier
       
       # Initialize preferred_units hash to pre-normalized state.
       preferred_units = {preferred_units => 1} if preferred_units.is_a?(Symbol)
-      @preferred_units = preferred_units || preferred_units_from(powers_hash)
+      self.preferred_units = preferred_units || preferred_units_from(powers_hash)
       
       # Store quantity as float.
       @quantity = quantity.to_f
@@ -445,7 +445,7 @@ module PhysicalQuantifier
     end
     
 
-    attr_accessor :quantity, :powers
+    attr_accessor :quantity, :powers, :preferred_units
     
     ##
     # Get the PhysicalQuantity's powers hash with zero-power units removed.
@@ -497,7 +497,7 @@ module PhysicalQuantifier
         raise PhysicalQuantifier::Error,
           "Can only add PhysicalQuantities with like units"
       end
-      PhysicalQuantity.new(quantity + other.quantity, powers, @preferred_units)
+      PhysicalQuantity.new(quantity + other.quantity, powers, preferred_units)
     end
 
     ##
@@ -508,7 +508,7 @@ module PhysicalQuantifier
         raise PhysicalQuantifier::Error,
           "Can only subtract PhysicalQuantities with like units"
       end
-      PhysicalQuantity.new(quantity - other.quantity, powers, @preferred_units)
+      PhysicalQuantity.new(quantity - other.quantity, powers, preferred_units)
     end
 
     ##
@@ -519,7 +519,8 @@ module PhysicalQuantifier
       new_powers = powers
       new_powers.default = 0
       other.powers.each{ |u,p| new_powers[u] += p }
-      PhysicalQuantity.new(q, new_powers, @preferred_units)
+      pu = other.preferred_units.merge(preferred_units)
+      PhysicalQuantity.new(q, new_powers, pu)
     end
     
     ##
@@ -536,7 +537,7 @@ module PhysicalQuantifier
       if transformation.from == self.from
         transform_quantity(transformation)
         transform_units(transformation)
-      # TODO: else raise exception
+        # TODO: else raise exception
       end
     end
     
@@ -559,27 +560,28 @@ module PhysicalQuantifier
         u = Unit.get(u) if u.is_a?(Symbol)
         prefs[u.quality] = u
       end
-      @preferred_units = prefs
+      self.preferred_units = prefs
     end
     
     
     private # -----------------------------------------------------------------
     
     ##
-    # Is the current object normalized?
+    # Is the current object normalized? A normalized state is when the powers
+    # hash contains the same units as the preferred_units hash.
     #
     def normalized?
-      @preferred_units.values - powers.keys == []
+      self.preferred_units.values - powers.keys == []
     end
     
     ##
     # Get a preferred_units-style hash (quality => unit) from a powers-style
     # hash (unit => power).
     #
-    def preferred_units_from(powers)
-      powers = {powers => 1} if powers.is_a?(Symbol)
+    def preferred_units_from(hash)
+      hash = {hash => 1} if hash.is_a?(Symbol)
       preferred_units = {}
-      powers.each do |u,p|
+      hash.each do |u,p|
         u = Unit.get(u) if u.is_a?(Symbol)
         preferred_units[u.quality] = u
       end
@@ -609,7 +611,7 @@ module PhysicalQuantifier
     def x_alize(norm = true, preferred = nil)
       
       # Set up defaults.
-      preferred = @preferred_units if preferred.nil?
+      preferred = preferred_units if preferred.nil?
       new_powers = {}
       new_powers.default = 0
       
@@ -633,17 +635,15 @@ module PhysicalQuantifier
     ##
     # Apply the numeric part of a Transformation to self.
     #
-    def transform_quantity(transformation)
-      @quantity = transformation.apply_to_quantity(@quantity)
+    def transform_quantity(t)
+      @quantity = t.apply_to_quantity(@quantity)
     end
     
     ##
     # Apply the units part of a Transformation to self.
     #
-    def transform_units(transformation)
-      if powers.has_key?(transformation.from)
-        @powers[transformation.from] = transformation.to
-      end 
+    def transform_units(t)
+      @powers[t.from] = t.to if powers.has_key?(t.from)
     end
   end
 
@@ -687,12 +687,15 @@ module PhysicalQuantifier
   Unit.new :ou, 'ounce',     :kg, 0.02835
 
   ##
+  # Time.
+  #
+  Unit.new :hr, 'hour',       :s, 60*60
+
+  ##
   # Temperature.
   #
   Unit.new :fah, 'degree fahrenheit', :K,
     [lambda{|x| (x * 9.0/5) - 459.67}, lambda{|x| (x + 459.67) * 5.0/9}]
   Unit.new :cel, 'degree celcius',    :K,
     [lambda{|x| x - 273.15}, lambda{|x| x + 273.15}]
-
 end
-

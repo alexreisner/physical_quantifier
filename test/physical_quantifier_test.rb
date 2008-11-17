@@ -165,7 +165,7 @@ class PhysicalQuantifierTest < Test::Unit::TestCase
     assert_equal "2 m/s", a.to_s
     a = PhysicalQuantity.new(4.8, :m => 2, :s => -1)
     assert_equal "4.8 m^2/s", a.to_s
-    assert_equal "4.8 m<sup>2</sup>/s", a.to_s(:html) 
+    assert_equal "4.8 m<sup>2</sup>/s", a.to_s(:html)
   end
   
   def test_preservation_of_preferred_units
@@ -174,6 +174,10 @@ class PhysicalQuantifierTest < Test::Unit::TestCase
     b = PhysicalQuantity.new(48, :mm => 1, :s => -1)
     assert_equal "50 mm/s", (a + b).to_s
     assert_equal "96 mm^2/s^2", (a * b).to_s
+
+    dist = PhysicalQuantity.new(50.4, :m)
+    time = PhysicalQuantity.new(3.87, :s)
+    assert_equal "13.0232558139535 m/s", (dist/time).to_s
   end
   
   def test_physical_quantity_conversion
