@@ -9,6 +9,8 @@ Written by Alex Reisner (alex@alexreisner.com).
 
 In scientific and engineering applications there is often a need to work with numbers that represent actual real-world things. Quantities (like 42) become "physical" when we attach units to them (like meters or pounds). They then represent properties of real objects like time, mass, length, temperature, etc. PhysicalQuantifier allows your numbers to retain their "physicality" whether they're stored in a database, loaded into memory, or manipulated mathematically and combined with other quantities of like and unlike units. It also facilitates easy conversion between units of different measurement systems.
 
+<b>PhysicalQuantifier is no longer actively maintained.</b>
+
 
 == Installation
 
