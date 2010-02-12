@@ -1,6 +1,5 @@
 require 'test/unit'
 $:.unshift File.join(File.dirname(__FILE__), '../lib')
-#RAILS_ROOT = '.' unless defined?(RAILS_ROOT)
 require 'physical_quantifier'
 
 class PhysicalQuantifierTest < Test::Unit::TestCase
